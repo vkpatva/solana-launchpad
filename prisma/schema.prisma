@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime  @default(now())
+
+  launches     Launch[]  @relation("UserLaunches")
+  purchases    Purchase[]
+}
+
+model Launch {
+  id            String           @id @default(uuid())
+  name          String
+  symbol        String
+  totalSupply   Int
+  pricePerToken Decimal          @db.Decimal(18, 8)
+  startsAt      DateTime
+  endsAt        DateTime
+  maxPerWallet  Int
+  description   String?
+
+  cliffDays     Int?
+  vestingDays   Int?
+  tgePercent    Int?
+
+  creatorId     String
+  creator       User             @relation("UserLaunches", fields: [creatorId], references: [id])
+
+  tiers         LaunchTier[]
+  whitelist     WhitelistEntry[]
+  referrals     ReferralCode[]
+  purchases     Purchase[]
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model LaunchTier {
+  id            String   @id @default(uuid())
+  launchId      String
+  launch        Launch   @relation(fields: [launchId], references: [id])
+
+  minAmount     Int
+  maxAmount     Int
+  pricePerToken Decimal  @db.Decimal(18, 8)
+}
+
+model WhitelistEntry {
+  id        String  @id @default(uuid())
+  launchId  String
+  launch    Launch  @relation(fields: [launchId], references: [id])
+  address   String
+
+  createdAt DateTime @default(now())
+
+  @@unique([launchId, address])
+}
+
+model ReferralCode {
+  id              String  @id @default(uuid())
+  launchId        String
+  launch          Launch  @relation(fields: [launchId], references: [id])
+
+  code            String
+  discountPercent Int
+  maxUses         Int
+  usedCount       Int     @default(0)
+
+  createdAt       DateTime @default(now())
+
+  @@unique([launchId, code])
+}
+
+model Purchase {
+  id            String   @id @default(uuid())
+  launchId      String
+  launch        Launch   @relation(fields: [launchId], references: [id])
+
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+
+  walletAddress String
+  amount        Int
+  totalCost     Decimal  @db.Decimal(18, 8)
+  txSignature   String   @unique
+
+  createdAt     DateTime @default(now())
+}
